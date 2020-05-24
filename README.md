@@ -1,1 +1,1 @@
-This is a Golang implementation of a set.
+This is a Golang implementation of a set (Ordered and Unordered).
