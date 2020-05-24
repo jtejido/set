@@ -1,2 +1,1 @@
-# set
-Ordered and Unordered Set
+This is a Golang implementation of a set.
