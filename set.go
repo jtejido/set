@@ -1,13 +1,13 @@
 package set
 
 type Set interface {
-	Add(i ...Equality)
+	Add(i ...interface{})
 	Len() int
 	Clear()
-	Contains(i ...Equality) bool
+	Contains(i ...interface{}) bool
 	Equal(other Set) bool
 	Iter() <-chan interface{}
-	Remove(i Equality)
+	Remove(i interface{})
 	ToSlice() []interface{}
 	RemoveFrom(other Set)
 	AddFrom(other Set)
@@ -15,11 +15,7 @@ type Set interface {
 	Clone() Set
 }
 
-type Equality interface {
-	Equals(interface{}) bool
-}
-
-func NewOrderedSet(s ...Equality) Set {
+func NewOrderedSet(s ...interface{}) Set {
 	set := newSafeOrderedSet()
 	for _, item := range s {
 		set.Add(item)
@@ -27,7 +23,7 @@ func NewOrderedSet(s ...Equality) Set {
 	return &set
 }
 
-func NewOrderedSetFromSlice(s []Equality) Set {
+func NewOrderedSetFromSlice(s []interface{}) Set {
 	a := NewOrderedSet(s...)
 	return a
 }
@@ -36,7 +32,7 @@ func NewUnsafeOrderedSet() Set {
 	return newUnsafeOrderedSet()
 }
 
-func NewUnsafeOrderedSetFromSlice(s []Equality) Set {
+func NewUnsafeOrderedSetFromSlice(s []interface{}) Set {
 	a := NewUnsafeOrderedSet()
 	for _, item := range s {
 		a.Add(item)
@@ -44,15 +40,15 @@ func NewUnsafeOrderedSetFromSlice(s []Equality) Set {
 	return a
 }
 
-func NewSet(s ...Equality) Set {
+func NewSet(s ...interface{}) Set {
 	set := newSafeSet()
 	for _, item := range s {
 		set.Add(item)
 	}
-	return &set
+	return set
 }
 
-func NewSetFromSlice(s []Equality) Set {
+func NewSetFromSlice(s []interface{}) Set {
 	a := NewSet(s...)
 	return a
 }
@@ -61,7 +57,7 @@ func NewUnsafeSet() Set {
 	return newUnsafeSet()
 }
 
-func NewUnsafeSetFromSlice(s []Equality) Set {
+func NewUnsafeSetFromSlice(s []interface{}) Set {
 	a := NewUnsafeSet()
 	for _, item := range s {
 		a.Add(item)

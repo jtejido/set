@@ -3,129 +3,112 @@ package set
 import "sync"
 
 var (
-	sss *safeSet
+	sss safeSet
 	_   Set = sss
 )
 
-type safeSet struct {
-	s *unsafeSet
-	sync.RWMutex
-}
+var mu = sync.RWMutex{}
+
+type safeSet unsafeSet
 
 func newSafeSet() safeSet {
-	return safeSet{s: newUnsafeSet()}
+	return safeSet(newUnsafeSet())
 }
 
-func (s *safeSet) Add(i ...Equality) {
-	s.Lock()
-	s.s.Add(i...)
-	s.Unlock()
+func (s safeSet) Add(i ...interface{}) {
+	mu.Lock()
+	unsafeSet(s).Add(i...)
+	mu.Unlock()
 }
 
-func (s *safeSet) Contains(i ...Equality) bool {
-	s.RLock()
-	ret := s.s.Contains(i...)
-	s.RUnlock()
+func (s safeSet) Contains(i ...interface{}) bool {
+	mu.RLock()
+	ret := unsafeSet(s).Contains(i...)
+	mu.RUnlock()
 	return ret
 }
 
-func (s *safeSet) Clear() {
-	s.Lock()
-	s.s = newUnsafeSet()
-	s.Unlock()
-}
-
-func (s *safeSet) Remove(i Equality) {
-	s.Lock()
-
-	for k := range s.s.index {
-		if i.Equals(k) {
-			delete(s.s.index, k)
-			break
-		}
+func (s safeSet) Clear() {
+	mu.Lock()
+	for k := range s {
+		delete(s, k)
 	}
-
-	s.Unlock()
+	mu.Unlock()
 }
 
-func (s *safeSet) Len() int {
-	s.RLock()
-	defer s.RUnlock()
-	return len(s.s.index)
+func (s safeSet) Remove(i interface{}) {
+	mu.Lock()
+	if _, found := s[i]; !found {
+		return
+	}
+	delete(s, i)
+	mu.Unlock()
 }
 
-func (s *safeSet) Iter() <-chan interface{} {
+func (s safeSet) Len() int {
+	mu.RLock()
+	defer mu.RUnlock()
+	return len(s)
+}
+
+func (s safeSet) Iter() <-chan interface{} {
 	ch := make(chan interface{})
 	go func() {
-		s.RLock()
-		for key := range s.s.index {
+		for key := range s {
 			ch <- key
 		}
 		close(ch)
-		s.RUnlock()
 	}()
 
 	return ch
 }
 
-func (s *safeSet) Equal(other Set) bool {
-	o := other.(*safeSet)
+func (s safeSet) Equal(other Set) bool {
+	o := other.(safeSet)
 
-	s.RLock()
-	o.RLock()
+	mu.RLock()
+	ret := unsafeSet(s).Equal(unsafeSet(o))
+	mu.RUnlock()
 
-	ret := s.s.Equal(o.s)
-	s.RUnlock()
-	o.RUnlock()
 	return ret
 }
 
-func (s *safeSet) Clone() Set {
-	s.RLock()
+func (s safeSet) Clone() Set {
+	mu.RLock()
+	defer mu.RUnlock()
+	unsafeClone := unsafeSet(s).Clone()
+	ret := safeSet(unsafeClone.(unsafeSet))
 
-	unsafeClone := s.s.Clone().(*unsafeSet)
-	ret := &safeSet{s: unsafeClone}
-	s.RUnlock()
 	return ret
 }
 
-func (s *safeSet) ToSlice() []interface{} {
+func (s safeSet) ToSlice() []interface{} {
 	keys := make([]interface{}, 0, s.Len())
-	s.RLock()
-	for key := range s.s.index {
+	mu.RLock()
+	for key := range s {
 		keys = append(keys, key)
 	}
-	s.RUnlock()
+	mu.RUnlock()
 	return keys
 }
 
-func (s *safeSet) RemoveFrom(other Set) {
-	o := other.(*safeSet)
-	s.RLock()
-	o.RLock()
-	defer s.RUnlock()
-	defer o.RUnlock()
-
-	s.s.RemoveFrom(o.s)
+func (s safeSet) RemoveFrom(other Set) {
+	mu.Lock()
+	o := other.(safeSet)
+	unsafeSet(s).RemoveFrom(unsafeSet(o))
+	mu.Unlock()
 }
 
-func (s *safeSet) AddFrom(other Set) {
-	o := other.(*safeSet)
-	s.RLock()
-	o.RLock()
-	defer s.RUnlock()
-	defer o.RUnlock()
-
-	s.s.AddFrom(o.s)
+func (s safeSet) AddFrom(other Set) {
+	mu.Lock()
+	o := other.(safeSet)
+	unsafeSet(s).AddFrom(unsafeSet(o))
+	mu.Unlock()
 }
 
-func (s *safeSet) RetainFrom(other Set) {
-	o := other.(*safeSet)
-
-	s.RLock()
-	o.RLock()
-	defer s.RUnlock()
-	defer o.RUnlock()
-
-	s.s.RetainFrom(o.s)
+func (s safeSet) RetainFrom(other Set) {
+	mu.Lock()
+	o := other.(safeSet)
+	unsafeSet(s).RetainFrom(unsafeSet(o))
+	mu.Unlock()
 }

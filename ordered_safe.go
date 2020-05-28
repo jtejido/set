@@ -16,13 +16,13 @@ func newSafeOrderedSet() safeOrderedSet {
 	return safeOrderedSet{s: newUnsafeOrderedSet()}
 }
 
-func (s *safeOrderedSet) Add(i ...Equality) {
+func (s *safeOrderedSet) Add(i ...interface{}) {
 	s.Lock()
 	s.s.Add(i...)
 	s.Unlock()
 }
 
-func (s *safeOrderedSet) Contains(i ...Equality) bool {
+func (s *safeOrderedSet) Contains(i ...interface{}) bool {
 	s.RLock()
 	ret := s.s.Contains(i...)
 	s.RUnlock()
@@ -35,29 +35,9 @@ func (s *safeOrderedSet) Clear() {
 	s.Unlock()
 }
 
-func (s *safeOrderedSet) Remove(i Equality) {
+func (s *safeOrderedSet) Remove(i interface{}) {
 	s.Lock()
-
-	for k, index := range s.s.index {
-		if i.Equals(k) {
-			if _, found := s.s.m[index]; !found {
-				return
-			}
-
-			delete(s.s.m, index)
-			// Remove the key
-			for i := range s.s.keys {
-				if s.s.keys[i] == index {
-					s.s.keys = append(s.s.keys[:i], s.s.keys[i+1:]...)
-					break
-				}
-			}
-
-			delete(s.s.index, k)
-			break
-		}
-	}
-
+	s.s.Remove(i)
 	s.Unlock()
 }
 
@@ -114,32 +94,27 @@ func (s *safeOrderedSet) ToSlice() []interface{} {
 
 func (s *safeOrderedSet) RemoveFrom(other Set) {
 	o := other.(*safeOrderedSet)
-	s.RLock()
+	s.Lock()
 	o.RLock()
-	defer s.RUnlock()
-	defer o.RUnlock()
-
 	s.s.RemoveFrom(o.s)
+	s.Unlock()
+	o.RUnlock()
 }
 
 func (s *safeOrderedSet) AddFrom(other Set) {
 	o := other.(*safeOrderedSet)
-	s.RLock()
+	s.Lock()
 	o.RLock()
-	defer s.RUnlock()
-	defer o.RUnlock()
-
 	s.s.AddFrom(o.s)
-
+	s.Unlock()
+	o.RUnlock()
 }
 
 func (s *safeOrderedSet) RetainFrom(other Set) {
 	o := other.(*safeOrderedSet)
-
-	s.RLock()
+	s.Lock()
 	o.RLock()
-	defer s.RUnlock()
-	defer o.RUnlock()
-
 	s.s.RetainFrom(o.s)
+	s.Unlock()
+	o.RUnlock()
 }

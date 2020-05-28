@@ -16,17 +16,9 @@ func newUnsafeOrderedSet() *unsafeOrderedSet {
 	return &unsafeOrderedSet{currentIndex: 0, m: make(map[int]interface{}), keys: make([]int, 0), index: make(map[interface{}]int)}
 }
 
-func (s *unsafeOrderedSet) Add(i ...Equality) {
+func (s *unsafeOrderedSet) Add(i ...interface{}) {
 	for _, item := range i {
-		var caught bool
-		for k, _ := range s.index {
-			if item.Equals(k) {
-				caught = true
-				break
-			}
-		}
-
-		if caught {
+		if _, found := s.index[item]; found {
 			continue
 		}
 
@@ -40,44 +32,38 @@ func (s *unsafeOrderedSet) Add(i ...Equality) {
 	}
 }
 
-func (s *unsafeOrderedSet) Contains(i ...Equality) bool {
-	for _, val := range i {
-		for k, _ := range s.index {
-			if val != nil {
-				if v, ok := val.(Equality); ok {
-					if v.Equals(k) {
-						return true
-					}
-				}
-			}
+func (s *unsafeOrderedSet) Contains(i ...interface{}) bool {
+	for _, item := range i {
+		if _, found := s.index[item]; !found {
+			return false
 		}
 	}
-	return false
+	return true
 }
 
 func (s *unsafeOrderedSet) Clear() {
 	*s = *newUnsafeOrderedSet()
 }
 
-func (s *unsafeOrderedSet) Remove(i Equality) {
-	for k, index := range s.index {
-		if i.Equals(k) {
-			if _, found := s.m[index]; !found {
-				return
-			}
+func (s *unsafeOrderedSet) Remove(i interface{}) {
+	index, found := s.index[i]
+	if !found {
+		return
+	}
 
-			delete(s.m, index)
-			for i := range s.keys {
-				if s.keys[i] == index {
-					s.keys = append(s.keys[:i], s.keys[i+1:]...)
-					break
-				}
-			}
+	if _, found := s.m[index]; !found {
+		return
+	}
 
-			delete(s.index, k)
+	delete(s.m, index)
+	for i := range s.keys {
+		if s.keys[i] == index {
+			s.keys = append(s.keys[:i], s.keys[i+1:]...)
 			break
 		}
 	}
+
+	delete(s.index, i)
 }
 
 func (s *unsafeOrderedSet) Len() int {
@@ -104,12 +90,8 @@ func (s *unsafeOrderedSet) Equal(other Set) bool {
 		return false
 	}
 	for elem := range s.index {
-		if elem != nil {
-			if v, ok := elem.(Equality); ok {
-				if !other.Contains(v) {
-					return false
-				}
-			}
+		if !other.Contains(elem) {
+			return false
 		}
 	}
 	return true
@@ -119,7 +101,7 @@ func (s *unsafeOrderedSet) Clone() Set {
 	clonedSet := newUnsafeOrderedSet()
 	for _, key := range s.keys {
 		if s.m[key] != nil {
-			clonedSet.Add(s.m[key].(Equality))
+			clonedSet.Add(s.m[key])
 		}
 	}
 	return clonedSet
@@ -136,12 +118,8 @@ func (s *unsafeOrderedSet) ToSlice() []interface{} {
 
 func (s *unsafeOrderedSet) RemoveFrom(other Set) {
 	for elem := range s.index {
-		if elem != nil {
-			if v, ok := elem.(Equality); ok {
-				if other.Contains(v) {
-					s.Remove(v)
-				}
-			}
+		if other.Contains(elem) {
+			s.Remove(elem)
 		}
 	}
 }
@@ -150,24 +128,16 @@ func (s *unsafeOrderedSet) AddFrom(other Set) {
 	o := other.(*unsafeOrderedSet)
 
 	for elem := range o.index {
-		if elem != nil {
-			if v, ok := elem.(Equality); ok {
-				if !s.Contains(v) {
-					s.Add(v)
-				}
-			}
+		if !s.Contains(elem) {
+			s.Add(elem)
 		}
 	}
 }
 
 func (s *unsafeOrderedSet) RetainFrom(other Set) {
 	for elem := range s.index {
-		if elem != nil {
-			if v, ok := elem.(Equality); ok {
-				if !other.Contains(v) {
-					s.Remove(v)
-				}
-			}
+		if !other.Contains(elem) {
+			s.Remove(elem)
 		}
 	}
 }
